@@ -1,7 +1,7 @@
 ## Memory
 
 Your memory is OptMem (github.com/VictorTaelin/OptMem), scoped to this project:
-- The tool is `memo` (on PATH; wrapper at `~/.local/bin/memo`, real file `~/.local/share/optmem/memo`)
+- The tool is `memo` (on PATH; wrapper at `~/.local/bin/memo`, real file in `~/dev/optmem`)
 - Your memories are in `<this repo>/.optmem/memory`
 
 OptMem outlives every session, compaction, model and vendor change.

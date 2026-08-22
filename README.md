@@ -8,8 +8,8 @@ Permanent memory for AI agents. A 426-token prompt, a script, plug and play.
 
 This fork changes the install layout for per-project memory scoping:
 
-- `./install.sh` (this fork) symlinks `memo` into `~/.local/share/optmem/` and
-  writes a wrapper to `~/.local/bin/memo`. The wrapper sets `MEMORY_DIR` to
+- `./install.sh` (this fork) writes a wrapper to `~/.local/bin/memo` that runs
+  this repo's `memo` directly. The wrapper sets `MEMORY_DIR` to
   `<git-root>/.optmem/memory`, so every git project gets its own store.
 - `memo init` also appends the agent prompt (`agents-block.md`) to the repo's
   `AGENTS.md`, idempotently.
