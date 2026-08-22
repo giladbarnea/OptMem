@@ -1,0 +1,13 @@
+#!/bin/sh
+# Warn (never block) when this fork's origin is behind upstream.
+# Network problems are silently ignored: no reachability, no warning.
+
+upstream="https://github.com/VictorTaelin/OptMem"
+
+git fetch -q "$upstream" main 2>/dev/null || exit 0
+behind="$(git rev-list --count refs/remotes/origin/main..FETCH_HEAD 2>/dev/null)" || exit 0
+if [ "${behind:-0}" -gt 0 ]; then
+  printf '\033[33mwarning: origin is %s commit(s) behind upstream (%s)\033[0m\n' \
+    "$behind" "$upstream" >&2
+fi
+exit 0
