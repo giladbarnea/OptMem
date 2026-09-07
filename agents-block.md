@@ -14,7 +14,7 @@ then do exactly what it prints, to the end of its output.
 
 ### While working: register memories (mandatory)
 
-Call `memo note "<1 line, max 280 bytes>"` whenever something worth keeping happens. That covers a lesson worth real effort, a fact or insight the user teaches you, anything you learn about their life (even indirectly), any event of lasting effect.
+Call `memo note "<1 line, max 280 bytes>"` whenever something worth keeping happens. That covers a lesson worth real effort, a fact or insight the user teaches you, any event of lasting effect.
 Do not register redundant memories.
 If `memo note` asks a compression: do it before your next action.
 Never edit or delete anything under `.optmem/memory`: the tool manages it.
