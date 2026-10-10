@@ -570,6 +570,32 @@ check(r.returncode == 1 and "forget 0-1" in r.stderr,
       "a corrupt summary must point at forget: " + r.stdout + r.stderr)
 shutil.rmtree(d5)
 
+# the record width is per memory: an empty memory takes it from ENTRY_CHARS,
+# and the first record fixes it for good, so raising the size later cannot
+# misalign what is already written -- while lowering it stays free
+d6 = tempfile.mkdtemp(prefix="optmem-wide-")
+check(run("config", "ENTRY_CHARS=560", store=d6).returncode == 0,
+      "an empty memory must accept a wider ENTRY_CHARS")
+check(run("note", "w" * 560, store=d6).stdout.startswith("Saved as #0"),
+      "a 560-byte memory was refused at ENTRY_CHARS=560")
+check(run("note", "w" * 561, store=d6).returncode == 1,
+      "a 561-byte memory was accepted at ENTRY_CHARS=560")
+check(run("note", "second wide memory", store=d6).returncode == 0
+      and run("nap", "0-1", "s" * 560, store=d6).returncode == 0,
+      "a 560-byte summary was refused")
+check(os.path.getsize(os.path.join(d6, "LOG.txt")) == 2 * 600
+      and os.path.getsize(os.path.join(d6, "TREE", "2")) == 568,
+      "wide records are not 600 and 568 bytes")
+check(run("config", "ENTRY_CHARS=561", store=d6).returncode == 1,
+      "a memory with records accepted a size wider than its records")
+check(run("config", "ENTRY_CHARS=", store=d6).returncode == 0
+      and run("zoom", "0-1", store=d6).stdout.splitlines()[0]
+      == "#0 %s %s" % (datetime.date.today().isoformat(), "w" * 560),
+      "back at the default size, the wide records no longer read back")
+check(run("note", "x" * 281, store=d6).returncode == 1,
+      "the default ENTRY_CHARS stopped limiting a wide memory")
+shutil.rmtree(d6)
+
 # re-running init on a lived-in store must not touch one byte of it: the
 # whole setup is idempotent, so it is safe on every provision. `init` only
 # ever makedirs(exist_ok), opens LOG.txt for APPEND, and writes `config`
