@@ -42,7 +42,8 @@ def pretty(p):
 
 # Every command this tool prints has to RUN. After `curl | sh` nothing is on
 # PATH, so a bare `memo nap 0-1 "..."` would not: the tool names itself.
-ME = pretty(__file__)
+# A wrapper that must stay in the loop names itself instead, in MEMO_COMMAND.
+ME = os.environ.get("MEMO_COMMAND") or pretty(__file__)
 
 # The sizes a memory may override in its own `config` file: the default, and
 # what it means. `memo config` shows and edits them. The globals below start

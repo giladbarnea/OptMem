@@ -24,6 +24,7 @@ cat > "$bin_dir/memo" << EOF
 root="\$(git worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p')"
 [ -n "\$root" ] || root="\$PWD"
 export MEMORY_DIR="\$root/.optmem/memory"
+export MEMO_COMMAND=memo
 
 if [ "\$1" = "init" ]; then
   python3 "$dir/memo" init || exit \$?
