@@ -439,7 +439,15 @@ def block_id(s):
     return lo, hi
 
 
-def check(text):
+SPLIT_HOW = ("Compress it further, or split it into two memories. Split at a "
+             "seam in the story, such as the event and its lesson, or the "
+             "decision and its later correction: each memory must make sense "
+             "alone, and the two must add up to the whole. Keep exact names, "
+             "numbers and dates. Move detail that belongs in a file to that "
+             "file, and point to it.")
+
+
+def check(text, too_long="Compress it further."):
     text = text.strip()
     if not text:
         die("Empty. A memory is one line of text.")
@@ -449,7 +457,7 @@ def check(text):
     n = len(text.encode())
     if n > ENTRY_CHARS:
         die("Too long: %d bytes, limit %d. Accented characters cost 2 bytes. "
-            "Compress it further." % (n, ENTRY_CHARS))
+            "%s" % (n, ENTRY_CHARS, too_long))
     return text
 
 
@@ -676,7 +684,7 @@ def cmd_note(d, args):
     if len(args) != 1:
         die("usage: %s note \"<one line, at most %d bytes>\""
             % (ME, ENTRY_CHARS))
-    text = check(args[0])
+    text = check(args[0], SPLIT_HOW)
     i = log_append(d, [(datetime.date.today().isoformat(), text)])
     print("Saved as #%d." % i)
     nap = next_nap(d, i + 1)
