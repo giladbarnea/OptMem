@@ -654,17 +654,25 @@ with tempfile.TemporaryDirectory(prefix="optmem-help-") as help_directory:
           and help_text in help_recall.stdout,
           "help flags inside ordinary note text must remain data")
 
-    with open(os.path.join(d, "config"), "a") as help_config:
+    help_config_store = os.path.join(help_directory, "broken-config")
+    os.mkdir(help_config_store)
+    with open(os.path.join(help_config_store, "config"), "w") as help_config:
         help_config.write("NOT_A_SETTING=1\n")
-    help_before = fingerprint(d)
+    help_before = fingerprint(help_config_store)
     for help_flag in ("-h", "--help"):
         help_result = subprocess.run(memo + ["config", help_flag],
                                      capture_output=True, text=True,
-                                     env=dict(help_environment, MEMORY_DIR=d))
+                                     env=dict(help_environment,
+                                              MEMORY_DIR=help_config_store))
         check(help_result.returncode == 0 and help_result.stdout == help_usage
-              and not help_result.stderr and fingerprint(d) == help_before,
+              and not help_result.stderr
+              and fingerprint(help_config_store) == help_before,
               "help must bypass a broken memory config: "
               + help_result.stdout + help_result.stderr)
+    config_after_help = run("config")
+    check(config_after_help.returncode == 0,
+          "help tests must leave the shared fixture's config usable: "
+          + config_after_help.stderr)
 
 shutil.rmtree(d2)
 shutil.rmtree(d)
