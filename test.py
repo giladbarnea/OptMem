@@ -634,6 +634,110 @@ check(fingerprint(d) == before, "init modified an existing memory")
 r = run("wake")
 check(r.stdout.rstrip().endswith("You are awake."), "wake broke after re-init")
 
+with tempfile.TemporaryDirectory(prefix="optmem-help-") as help_directory:
+    help_environment = dict(os.environ, MEMORY_DIR=help_directory)
+    help_before = fingerprint(help_directory)
+    help_result = subprocess.run(memo + ["note", "--help"],
+                                 capture_output=True, text=True,
+                                 cwd=help_directory, env=help_environment)
+    check(help_result.returncode == 0 and "OptMem:" in help_result.stdout
+          and not help_result.stderr
+          and fingerprint(help_directory) == help_before,
+          "note --help must print help without creating or changing memory: "
+          + help_result.stdout + help_result.stderr)
+    help_usage = subprocess.run(memo, capture_output=True, text=True,
+                                cwd=help_directory, env=help_environment).stdout
+    help_commands = ("init", "wake", "note", "nap", "recall", "zoom",
+                     "forget", "config", "import")
+    help_invocations = [()] + [(command,) for command in help_commands]
+    for help_flag in ("-h", "--help"):
+        for help_command in help_invocations:
+            help_result = subprocess.run(memo + [*help_command, help_flag],
+                                         capture_output=True, text=True,
+                                         cwd=help_directory,
+                                         env=dict(help_environment,
+                                                  MEMORY_DIR=help_directory + "/absent"))
+            check(help_result.returncode == 0 and help_result.stdout == help_usage
+                  and not help_result.stderr
+                  and fingerprint(help_directory) == help_before
+                  and not os.path.exists(help_directory + "/absent"),
+                  "%s %s must show help without a store: %s%s"
+                  % (" ".join(help_command), help_flag,
+                     help_result.stdout, help_result.stderr))
+
+    help_home = os.path.join(help_directory, "home")
+    help_project = os.path.join(help_directory, "project")
+    os.mkdir(help_project)
+    with open(os.path.join(help_project, "AGENTS.md"), "w") as help_agents:
+        help_agents.write("Existing project instructions.\n")
+    installation_environment = dict(help_environment, HOME=help_home)
+    installation = subprocess.run(["sh", os.path.join(HERE, "install.sh")],
+                                  capture_output=True, text=True,
+                                  cwd=help_project, env=installation_environment)
+    check(installation.returncode == 0,
+          "temporary launcher installation failed: " + installation.stderr)
+    help_launcher = os.path.join(help_home, ".local", "bin", "memo")
+    help_before = fingerprint(help_project)
+    help_result = subprocess.run([help_launcher, "init", "--help"],
+                                 capture_output=True, text=True,
+                                 cwd=help_project, env=installation_environment)
+    check(help_result.returncode == 0 and "OptMem:" in help_result.stdout
+          and not help_result.stderr and fingerprint(help_project) == help_before,
+          "installed init --help must not create memory or edit AGENTS.md: "
+          + help_result.stdout + help_result.stderr)
+
+    help_store = os.path.join(help_project, ".optmem", "memory")
+    memory_environment = dict(installation_environment, MEMORY_DIR=help_store)
+    subprocess.run(memo + ["init"], env=memory_environment,
+                   capture_output=True, check=True)
+    subprocess.run(memo + ["note", "an existing memory"], env=memory_environment,
+                   capture_output=True, check=True)
+    installation_environment.update(GIT_CONFIG_GLOBAL=os.devnull,
+                                    GIT_CONFIG_NOSYSTEM="1")
+    help_git = ["git", "--no-pager", "-C", help_project]
+    for git_arguments in (["init", "-q"],
+                          ["config", "user.name", "OptMem test"],
+                          ["config", "user.email", "test@example.invalid"],
+                          ["config", "optmem.commit", "true"],
+                          ["add", "."], ["commit", "-qm", "fixture"]):
+        subprocess.run(help_git + git_arguments, env=installation_environment,
+                       capture_output=True, check=True)
+    with open(os.path.join(help_store, "config"), "a") as help_config:
+        help_config.write("WAKE_LINES=12\n")
+    help_before = fingerprint(help_project)
+    help_usage = subprocess.run([help_launcher], capture_output=True, text=True,
+                                cwd=help_project,
+                                env=installation_environment).stdout
+    help_arguments = {"init": [], "wake": ["1"], "note": ["not a new memory"],
+                      "nap": ["0-1", "not a new summary"], "recall": ["."],
+                      "zoom": ["0-1"], "forget": ["0-1"],
+                      "config": ["WAKE_LINES=1"], "import": ["missing.txt"]}
+    for help_flag in ("-h", "--help"):
+        for help_command, command_arguments in help_arguments.items():
+            help_result = subprocess.run(
+                [help_launcher, help_command, *command_arguments, help_flag],
+                capture_output=True, text=True, cwd=help_project,
+                env=installation_environment)
+            check(help_result.returncode == 0 and help_result.stdout == help_usage
+                  and not help_result.stderr
+                  and fingerprint(help_project) == help_before,
+                  "%s %s must not change memory, AGENTS.md or git: %s%s"
+                  % (help_command, help_flag,
+                     help_result.stdout, help_result.stderr))
+
+    with open(os.path.join(help_store, "config"), "a") as help_config:
+        help_config.write("NOT_A_SETTING=1\n")
+    help_before = fingerprint(help_project)
+    for help_flag in ("-h", "--help"):
+        help_result = subprocess.run(memo + ["config", help_flag],
+                                     capture_output=True, text=True,
+                                     cwd=help_project, env=memory_environment)
+        check(help_result.returncode == 0 and "OptMem:" in help_result.stdout
+              and not help_result.stderr
+              and fingerprint(help_project) == help_before,
+              "help must not read a broken memory config: "
+              + help_result.stdout + help_result.stderr)
+
 shutil.rmtree(d2)
 shutil.rmtree(d)
 print("\n%d passed, %d failed" % (ok, fail))
