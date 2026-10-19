@@ -60,6 +60,24 @@ seek. At a million memories (608 MB), `wake` takes 0.03s.
 
 Set `$MEMORY_DIR` to keep `memory/` elsewhere — a synced folder, a git repo.
 
+## Automatic environment metadata
+
+Configure a store to copy selected environment values into new notes:
+
+```sh
+memo config 'ENV_METADATA={"PI_SESSION_ID":"sid"}'
+memo note "A useful fact."
+# Stored: #0 YYYY-MM-DD sid:<current-session-id> A useful fact.
+```
+
+The mapping is opt-in and defaults to `{}`. It is not specific to Pi. Every configured variable must be present and nonempty when `note` runs. Values must be single tokens. Invalid configuration or missing values fail before appending a note.
+
+Tags are ordinary inline text immediately after the date. They count toward `ENTRY_CHARS` and can be searched with `recall`. The host must supply the current environment for each command; setting a shared server's process environment per session is not safe.
+
+`import` preserves its prepared historical text and does not stamp the importing process's metadata. `nap` also leaves the supplied summary unchanged. Clear the mapping with `memo config ENV_METADATA=`.
+
+Tests: `uv run -p python3 test.py` and `uv run -p python3 test_environment_metadata.py`.
+
 ## The prompt
 
 This is what the installer prints, and the whole of the integration.

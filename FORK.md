@@ -11,7 +11,9 @@ The fork keeps that installation and agent-policy integration separate from upst
 1. **Parent:** [VictorTaelin/OptMem](https://github.com/VictorTaelin/OptMem). Its [README](https://github.com/VictorTaelin/OptMem/blob/main/README.md) describes upstream's memory tool and installation.
 2. **This fork:** [giladbarnea/OptMem](https://github.com/giladbarnea/OptMem), at `~/dev/optmem`.
 
-There are no known child forks. Projects that use the installed `memo` wrapper are consumers, not child forks. Their memory contents and project rules remain their own.
+3. **Child:** [giladbarnea/avidor-optmem](https://github.com/giladbarnea/avidor-optmem), a private production integration at `~/dev/avidor-optmem`. Its [FORK.md](../avidor-optmem/FORK.md) owns the client boundary. It inherits the engine here and adds deployment defaults and integration verification.
+
+Other projects that use the installed `memo` wrapper are consumers, not child forks. Their memory contents and project rules remain their own.
 
 ## Responsibility boundary
 
@@ -25,7 +27,7 @@ Client-specific facts, metadata conventions, and memory policies belong in the c
 
 Follow the [shared fork guide](/Users/giladbarnea/.agents/skills/open-source-contribution-attitude/references/fork.md) for category definitions, placement, retirement, and contribution protocols.
 
-The per-project launcher and agent-policy integration are intentional product drift. Configurable per-memory record width is a general improvement. Non-mutating CLI help is a bug fix. Do not treat all differences as permanent merely because this fork currently carries them.
+The per-project launcher and agent-policy integration are intentional product drift. Configurable per-memory record width is a general improvement. Non-mutating CLI help is a bug fix. Configurable environment metadata is a general improvement tracked in [GENERAL-IMPROVEMENT-DRIFTS.md](GENERAL-IMPROVEMENT-DRIFTS.md). Do not treat all differences as permanent merely because this fork currently carries them.
 
 ## Fork installation and behavior
 

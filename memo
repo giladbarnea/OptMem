@@ -8,7 +8,7 @@
   {memo} recall <regex>   search every memory ever recorded.
   {memo} zoom <lo>-<hi>   open a tree node: its two halves.
   {memo} forget <lo>-<hi> drop a bad summary; nap rebuilds it.
-  {memo} config [NAME=N]  show this memory's sizes, or change one.
+  {memo} config [NAME=VALUE] show this memory's settings, or change one.
   {memo} import <file>    bulk-load dated memories (bootstrap only).
 
 Use -h or --help, before or after a command, to print this help without
@@ -19,6 +19,7 @@ See github.com/VictorTaelin/OptMem.
 """
 
 import datetime
+import json
 try:
     import fcntl
 except ImportError:
@@ -27,6 +28,7 @@ import os
 import re
 import sys
 from collections import deque
+from collections.abc import Mapping
 
 
 # The store is UTF-8 by construction, so the tool reads and prints UTF-8
@@ -65,6 +67,8 @@ ENTRY_CHARS = KNOBS["ENTRY_CHARS"][0]
 # parts that fit all of them. These are transport limits, not memory limits.
 PART_CHARS = KNOBS["PART_CHARS"][0]
 PART_LINES = KNOBS["PART_LINES"][0]
+ENV_METADATA: dict[str, str] = {}
+CONFIG_NAMES = (*KNOBS, "ENV_METADATA")
 
 RAW_MAX = 16  # blocks up to this many memories compress from the raw log
 
@@ -186,8 +190,40 @@ def written_width(d):
     return len(first) if first.endswith(b"\n") else 0
 
 
+def metadata_mapping(value: str, where: str = "") -> dict[str, str]:
+    """Read the environment-variable to inline-tag mapping from configuration."""
+    try:
+        mapping = json.loads(value)
+    except json.JSONDecodeError as error:
+        die("%sENV_METADATA must be a JSON object: %s" % (where, error.msg))
+    if not isinstance(mapping, dict) or any(
+            not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", name)
+            or not isinstance(tag, str)
+            or not re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]*", tag)
+            for name, tag in mapping.items()):
+        die("%sENV_METADATA must map environment variable names to single tag names." % where)
+    return mapping
+
+
+def environment_tags(mapping: Mapping[str, str], environment: Mapping[str, str]) -> str:
+    """Render configured environment values as inline note metadata.
+
+    >>> environment_tags({"PI_SESSION_ID": "sid"}, {"PI_SESSION_ID": "abc"})
+    'sid:abc'
+    """
+    tags = []
+    for name, tag in mapping.items():
+        value = environment.get(name)
+        if not value:
+            die("ENV_METADATA requires %s in the note's environment." % name)
+        if any(character.isspace() for character in value):
+            die("ENV_METADATA %s must be one nonempty token." % name)
+        tags.append("%s:%s" % (tag, value))
+    return " ".join(tags)
+
+
 def overrides(d):
-    """The knobs this memory sets for itself, read from its `config` file."""
+    """The settings this memory overrides in its `config` file."""
     out = {}
     p = os.path.join(d, "config")
     if not os.path.exists(p):
@@ -199,10 +235,10 @@ def overrides(d):
         k, v = line.split("=", 1)
         k, v = k.strip().upper(), v.strip()
         where = "%s line %d: " % (pretty(p), n)
-        if k not in KNOBS:
-            die("%s%s is not a size. Delete the line, or name one of: %s."
-                % (where, k, ", ".join(KNOBS)))
-        out[k] = size(k, v, where)
+        if k not in CONFIG_NAMES:
+            die("%s%s is not a setting. Delete the line, or name one of: %s."
+                % (where, k, ", ".join(CONFIG_NAMES)))
+        out[k] = metadata_mapping(v, where) if k == "ENV_METADATA" else size(k, v, where)
     return out
 
 
@@ -210,22 +246,25 @@ def config(d):
     """Apply this memory's overrides and fix its record widths. A knob it does
     not set keeps the tool's default, so updating the tool still changes how
     it behaves -- except the width of records already written."""
-    global WRITTEN_REC, LOG_REC, TREE_REC
+    global WRITTEN_REC, LOG_REC, TREE_REC, ENV_METADATA
     WRITTEN_REC = written_width(d)
-    for k, v in overrides(d).items():
+    configured = overrides(d)
+    ENV_METADATA = configured.get("ENV_METADATA", {})
+    for k, v in configured.items():
         globals()[k] = v  # a knob's name IS the name of the global it sets
     LOG_REC = WRITTEN_REC or ENTRY_CHARS + LOG_ROOM
     TREE_REC = LOG_REC - LOG_ROOM + TREE_ROOM
 
 
 def write_config(d, over):
-    """Rewrite `config`: every knob on its own line, commented out unless this
-    memory overrides it."""
-    out = ["# OptMem sizes for this memory. A commented line means: follow the",
+    """Write per-memory settings, with default sizes commented out."""
+    out = ["# OptMem settings for this memory. A commented line means: follow the",
            "# tool's default. Edit with `%s config NAME=VALUE`." % ME, ""]
     for k, (default, what) in KNOBS.items():
         out.append("%-2s%-12s = %-6d # %s"
                    % ("" if k in over else "# ", k, over.get(k, default), what))
+    if "ENV_METADATA" in over:
+        out.append("ENV_METADATA = " + json.dumps(over["ENV_METADATA"]))
     with open(os.path.join(d, "config"), "w", encoding="utf-8") as f:
         f.write("\n".join(out) + "\n")
 
@@ -688,6 +727,7 @@ def cmd_note(d, args):
         die("usage: %s note \"<one line, at most %d bytes>\""
             % (ME, ENTRY_CHARS))
     text = check(args[0], SPLIT_HOW)
+    text = check(environment_tags(ENV_METADATA, os.environ) + " " + text, SPLIT_HOW)
     i = log_append(d, [(datetime.date.today().isoformat(), text)])
     print("Saved as #%d." % i)
     nap = next_nap(d, i + 1)
@@ -725,18 +765,17 @@ def cmd_nap(d, args):
 
 
 def cmd_config(d, args):
-    """Show this memory's sizes, or change one. An empty value restores the
-    default. Sizes only select what is printed, so changing one is free: no
-    memory is touched and nothing is recomputed."""
+    """Show or change per-memory settings; an empty value restores the default.
+    Existing memory records are never rewritten."""
     over = overrides(d)
     for a in args:
         k, eq, v = a.partition("=")
         k = k.strip().upper()
-        if not eq or k not in KNOBS:
+        if not eq or k not in CONFIG_NAMES:
             die("usage: %s config [NAME=VALUE ...]   # NAME one of %s"
-                % (ME, ", ".join(KNOBS)))
+                % (ME, ", ".join(CONFIG_NAMES)))
         if v.strip():
-            over[k] = size(k, v.strip())
+            over[k] = metadata_mapping(v.strip()) if k == "ENV_METADATA" else size(k, v.strip())
         else:
             over.pop(k, None)
     if args:
@@ -745,6 +784,8 @@ def cmd_config(d, args):
         print("%-12s %-7d %s%s" % (k, over.get(k, default), what,
                                    "" if k not in over else
                                    " (default %d)" % default))
+    print("ENV_METADATA %s  environment variables to inline tag names"
+          % json.dumps(over.get("ENV_METADATA", {})))
 
 
 def cmd_forget(d, args):
