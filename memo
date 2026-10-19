@@ -724,10 +724,17 @@ def cmd_wake(d, args):
 
 def cmd_note(d, args):
     if len(args) != 1:
-        die("usage: %s note \"<one line, at most %d bytes>\""
+        die("usage: %s note \"<one line>\"   # at most %d bytes including automatic metadata"
             % (ME, ENTRY_CHARS))
-    text = check(args[0], SPLIT_HOW)
-    text = check(environment_tags(ENV_METADATA, os.environ) + " " + text, SPLIT_HOW)
+    metadata = environment_tags(ENV_METADATA, os.environ)
+    guidance = SPLIT_HOW
+    if metadata:
+        metadata += " "
+        metadata_bytes = len(metadata.encode())
+        guidance = ("Automatic metadata uses %d bytes; note text can use at most %d bytes. %s"
+                    % (metadata_bytes, max(0, ENTRY_CHARS - metadata_bytes), SPLIT_HOW))
+    text = check(args[0], guidance)
+    text = check(metadata + text, guidance)
     i = log_append(d, [(datetime.date.today().isoformat(), text)])
     print("Saved as #%d." % i)
     nap = next_nap(d, i + 1)

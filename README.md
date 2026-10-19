@@ -72,7 +72,7 @@ memo note "A useful fact."
 
 The mapping is opt-in and defaults to `{}`. It is not specific to Pi. Every configured variable must be present and nonempty when `note` runs. Values must be single tokens. Invalid configuration or missing values fail before appending a note.
 
-Tags are ordinary inline text immediately after the date. They count toward `ENTRY_CHARS` and can be searched with `recall`. The host must supply the current environment for each command; setting a shared server's process environment per session is not safe.
+Tags are ordinary inline text immediately after the date. They count toward `ENTRY_CHARS` and can be searched with `recall`. A too-long note reports the automatic metadata bytes and the remaining note-text budget. The host must supply the current environment for each command; setting a shared server's process environment per session is not safe.
 
 `import` preserves its prepared historical text and does not stamp the importing process's metadata. `nap` also leaves the supplied summary unchanged. Clear the mapping with `memo config ENV_METADATA=`.
 

@@ -87,6 +87,19 @@ class EnvironmentMetadataTests(unittest.TestCase):
         self.assertIn("sid:first project:example First writer.", recalled.stdout)
         self.assertIn("sid:second project:example Second writer.", recalled.stdout)
 
+    def test_note_error_explains_the_automatic_metadata_budget(self) -> None:
+        self.run_memo("config", "ENTRY_CHARS=560", 'ENV_METADATA={"PI_SESSION_ID":"sid"}')
+        self.environment["PI_SESSION_ID"] = "11111111-1111-4111-8111-111111111111"
+        self.assertIn("including automatic metadata", self.run_memo("note").stderr)
+
+        rejected = self.run_memo("note", "x" * 540)
+        self.assertEqual(rejected.returncode, 1, rejected.stdout)
+        self.assertIn("Automatic metadata uses 41 bytes", rejected.stderr)
+        self.assertIn("note text can use at most 519 bytes", rejected.stderr)
+        self.assertEqual(self.run_memo("recall", ".").stdout, "No match.\n")
+        accepted = self.run_memo("note", "x" * 519)
+        self.assertEqual(accepted.returncode, 0, accepted.stderr)
+
     def test_metadata_and_unicode_share_the_entry_byte_budget(self) -> None:
         self.run_memo("config", "ENTRY_CHARS=32", 'ENV_METADATA={"PI_SESSION_ID":"sid"}')
         self.environment["PI_SESSION_ID"] = "abc"
