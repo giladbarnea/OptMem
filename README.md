@@ -6,24 +6,7 @@ Permanent memory for AI agents. A 426-token prompt, a script, plug and play.
 
 ## Fork notes (giladbarnea)
 
-This fork changes the install layout for per-project memory scoping:
-
-- `./install.sh` (this fork) writes a wrapper to `~/.local/bin/memo` that runs
-  this repo's `memo` directly. The wrapper sets `MEMORY_DIR` to
-  `<main checkout>/.optmem/memory`, so every git project gets one store, shared
-  by all its worktrees.
-- `git config optmem.commit true` in a repo makes the wrapper commit
-  `.optmem/memory` in the main checkout after every `note`, `nap`, `forget`,
-  `import` and `config`.
-- The record width is per memory. An empty memory takes it from `ENTRY_CHARS`
-  (`memo config ENTRY_CHARS=560` before the first note), and its first record
-  fixes it. To widen a memory that has records, replay it into a new one.
-- `memo init` also appends the agent prompt (`agents-block.md`) to the repo's
-  `AGENTS.md`, idempotently.
-- No global prompt injection: only projects whose AGENTS.md carries the block
-  use the memory.
-- `.githooks/pre-commit` (enabled via `git config core.hooksPath .githooks`)
-  prints a yellow warning when origin is behind upstream; it never blocks.
+This is Gilad's per-project fork. Its purpose, responsibility boundaries, installation, and behavior are in [FORK.md](FORK.md). The upstream quickstart follows below.
 
 ## Install
 
